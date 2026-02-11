@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>EPL-Connect — EPL Core</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 1200px; margin: 24px auto; padding: 0 12px; background:#f6f7fb; }
+    h1 { margin: 0 0 6px 0; }
+    .small { color:#666; font-size: 13px; margin-bottom: 12px; }
+    code { background:#eee; padding: 1px 6px; border-radius: 6px; }
+
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+    .card { background:#fff; border: 1px solid #e6e6e6; border-radius: 14px; padding: 14px; box-shadow: 0 8px 20px rgba(0,0,0,.06); }
+
+    label { display:block; font-size: 12px; color:#555; margin-top: 8px; }
+    input, select { width: 100%; padding: 9px; margin-top: 4px; border:1px solid #ddd; border-radius:10px; }
+    button { padding: 9px 12px; margin-top: 10px; cursor:pointer; border:0; border-radius:10px; background:#111; color:#fff; }
+    button:active { transform: translateY(1px); }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin-top: 12px; }
+    .match-card { background: #121212; color: #fff; border-radius: 14px; padding: 14px; box-shadow: 0 12px 26px rgba(0,0,0,.25); }
+    .match-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+    .score { font-size: 24px; font-weight: 800; margin: 6px 0; letter-spacing: .5px; }
+    .meta { display:flex; align-items:center; justify-content:space-between; margin-top: 8px; gap: 8px; }
+    .pill { display: inline-block; padding: 5px 10px; background: #1e88e5; border-radius: 999px; font-size: 12px; font-weight: 700; }
+    .pill.gray { background:#2b2b2b; }
+    .idtag { font-size: 12px; opacity: .75; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+    .badge { display: inline-block; padding: 7px 12px; border-radius: 999px; font-size: 13px; font-weight: 800; }
+    .badge.ok { background: #a5d6a7; color: #000; }
+    .badge.warn { background: #ffcc80; color: #000; }
+    .badge.err { background: #ef9a9a; color: #000; }
+
+    .rawbtn { margin-top: 10px; font-size: 12px; background:#fff; color:#111; border:1px solid #ddd; }
+    pre { background:#0b0b0b; color:#e6e6e6; padding: 12px; border-radius: 12px; overflow:auto; margin-top: 10px; }
+    .muted { color:#777; font-size: 13px; margin-top: 10px; }
+    .ok { color:#1b5e20; font-weight: 700; }
+    .err { color:#b71c1c; font-weight: 700; }
+
+    table { width:100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { border-bottom: 1px solid #eee; padding: 8px; text-align: left; font-size: 13px; }
+    th { font-size: 12px; color:#666; }
+    .right { text-align:right; }
+  </style>
+</head>
+
+<body>
+  <h1>EPL-Connect (EPL Core)</h1>
+  <div class="small">
+    Endpoints: <code>/teams</code>, <code>/matches</code>, <code>/matches/{key}/events</code>, <code>/matches/{key}/finalize</code>, <code>/table</code>.
+    Admin header: <code>X-Role: admin</code>.
+  </div>
+
+  <div class="row">
+    <!-- TEAMS -->
+    <div class="card">
+      <h3>1) Teams</h3>
+      <button id="btnTeams">GET /teams</button>
+      <div id="teamsHint" class="muted">Load EPL teams seeded in MongoDB.</div>
+
+      <div style="margin-top:10px;">
+        <label>Home team</label>
+        <select id="selHome"></select>
+
+        <label>Away team</label>
+        <select id="selAway"></select>
+      </div>
+
+      <button class="rawbtn" id="toggleRawTeams">Show raw JSON</button>
+      <pre id="outTeams" style="display:none">{}</pre>
+    </div>
+
+    <!-- TABLE -->
+    <div class="card">
+      <h3>2) EPL Table</h3>
+      <button id="btnTable">GET /table</button>
+      <div id="tableWrap"></div>
+
+      <button class="rawbtn" id="toggleRawTable">Show raw JSON</button>
+      <pre id="outTable" style="display:none">{}</pre>
+    </div>
+
+    <!-- MATCHES LIST -->
+    <div class="card">
+      <h3>3) Matches</h3>
+      <button id="btnMatches">GET /matches</button>
+      <div id="matches" class="grid"></div>
+      <div id="matchesHint" class="muted">Load scheduled & finished matches.</div>
+
+      <button class="rawbtn" id="toggleRawMatches">Show raw JSON</button>
+      <pre id="outMatches" style="display:none">{}</pre>
+    </div>
+
+    <!-- CREATE MATCH -->
+    <div class="card">
+      <h3>4) Create match (admin)</h3>
+
+      <label>Match key</label>
+      <input id="c_key" value="gw1-ars-che" />
+
+      <label>Date & time (RFC3339)</label>
+      <input id="c_dt" value="2026-02-10T18:30:00Z" />
+
+      <label>Home code</label>
+      <input id="c_home" value="ARS" />
+
+      <label>Away code</label>
+      <input id="c_away" value="CHE" />
+
+      <div class="muted">Tip: you can also select teams on the left and click “Fill from selectors”.</div>
+      <button id="btnFillCodes">Fill from selectors</button>
+
+      <button id="btnCreate">POST /matches</button>
+      <div id="createStatus" class="muted"></div>
+
+      <button class="rawbtn" id="toggleRawCreate">Show raw JSON</button>
+      <pre id="outCreate" style="display:none">{}</pre>
+    </div>
+
+    <!-- ADD EVENT -->
+    <div class="card">
+      <h3>5) Add event (admin)</h3>
+
+      <label>Match key</label>
+      <input id="e_key" value="gw1-ars-che" />
+
+      <label>Type</label>
+      <select id="e_type">
+        <option value="goal">goal</option>
+        <option value="card">card</option>
+      </select>
+
+      <label>Team code</label>
+      <input id="e_team" value="ARS" />
+
+      <label>Player</label>
+      <input id="e_player" value="Saka" />
+
+      <label>Minute</label>
+      <input id="e_min" type="number" value="57" />
+
+      <label>Card color (only for card)</label>
+      <select id="e_color">
+        <option value="yellow">yellow</option>
+        <option value="red">red</option>
+      </select>
+
+      <button id="btnEvent">PATCH /matches/{key}/events</button>
+      <div id="eventStatus" class="muted"></div>
+
+      <button class="rawbtn" id="toggleRawEvent">Show raw JSON</button>
+      <pre id="outEvent" style="display:none">{}</pre>
+    </div>
+
+    <!-- FINALIZE -->
+    <div class="card">
+      <h3>6) Finalize match (admin)</h3>
+
+      <label>Match key</label>
+      <input id="f_key" value="gw1-ars-che" />
+
+      <label>Home goals</label>
+      <input id="f_hg" type="number" value="1" />
+
+      <label>Away goals</label>
+      <input id="f_ag" type="number" value="0" />
+
+      <button id="btnFinalize">POST /matches/{key}/finalize</button>
+      <div id="finStatus" class="muted"></div>
+
+      <button class="rawbtn" id="toggleRawFinalize">Show raw JSON</button>
+      <pre id="outFinalize" style="display:none">{}</pre>
+    </div>
+  </div>
+
+<script>
+  function pretty(x) { return JSON.stringify(x, null, 2); }
+
+  async function api(path, options = {}) {
+    const res = await fetch(path, options);
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = { raw: text }; }
+    if (!res.ok) throw { status: res.status, data };
+    return data;
+  }
+
+  function toggle(el) {
+    el.style.display = (el.style.display === "none") ? "block" : "none";
+  }
+
+  // Outputs
+  const outTeams = document.getElementById("outTeams");
+  const outTable = document.getElementById("outTable");
+  const outMatches = document.getElementById("outMatches");
+  const outCreate = document.getElementById("outCreate");
+  const outEvent = document.getElementById("outEvent");
+  const outFinalize = document.getElementById("outFinalize");
+
+  // Toggles
+  document.getElementById("toggleRawTeams").onclick = () => toggle(outTeams);
+  document.getElementById("toggleRawTable").onclick = () => toggle(outTable);
+  document.getElementById("toggleRawMatches").onclick = () => toggle(outMatches);
+  document.getElementById("toggleRawCreate").onclick = () => toggle(outCreate);
+  document.getElementById("toggleRawEvent").onclick = () => toggle(outEvent);
+  document.getElementById("toggleRawFinalize").onclick = () => toggle(outFinalize);
+
+  // -------- Teams + selectors --------
+  function fillSelectors(teams) {
+    const home = document.getElementById("selHome");
+    const away = document.getElementById("selAway");
+    home.innerHTML = "";
+    away.innerHTML = "";
+    teams.forEach(t => {
+      const opt1 = document.createElement("option");
+      opt1.value = t.code;
+      opt1.textContent = `${t.code} — ${t.name}`;
+      home.appendChild(opt1);
+
+      const opt2 = document.createElement("option");
+      opt2.value = t.code;
+      opt2.textContent = `${t.code} — ${t.name}`;
+      away.appendChild(opt2);
+    });
+    // defaults
+    home.value = "ARS";
+    away.value = "CHE";
+  }
+
+  document.getElementById("btnTeams").onclick = async () => {
+    try {
+      const data = await api("/teams");
+      outTeams.textContent = pretty(data);
+      fillSelectors(data.teams || []);
+      document.getElementById("teamsHint").innerHTML = `<span class="ok">Loaded ${data.count} teams</span>`;
+    } catch (e) {
+      outTeams.textContent = pretty(e);
+      document.getElementById("teamsHint").innerHTML = `<span class="err">Failed to load teams</span>`;
+    }
+  };
+
+  document.getElementById("btnFillCodes").onclick = () => {
+    document.getElementById("c_home").value = document.getElementById("selHome").value;
+    document.getElementById("c_away").value = document.getElementById("selAway").value;
+  };
+
+  // -------- Matches list as cards --------
+  function renderMatches(data) {
+    const root = document.getElementById("matches");
+    const hint = document.getElementById("matchesHint");
+    root.innerHTML = "";
+
+    const list = data.matches || [];
+    if (list.length === 0) {
+      hint.textContent = "No matches yet. Create one (admin).";
+      return;
+    }
+    hint.textContent = `Loaded ${data.count} match(es).`;
+
+    list.forEach(m => {
+      const card = document.createElement("div");
+      card.className = "match-card";
+
+      const score = (m.status === "finished")
+        ? `${m.homeGoals}-${m.awayGoals}`
+        : "scheduled";
+
+      const dt = m.dateTime ? new Date(m.dateTime).toISOString() : "";
+
+      card.innerHTML = `
+        <div class="match-title">${m.homeCode} vs ${m.awayCode}</div>
+        <div class="score">${score}</div>
+        <div class="meta">
+          <span class="pill ${m.status === "finished" ? "" : "gray"}">${m.status}</span>
+          <span class="idtag">${m.matchKey}</span>
+        </div>
+        <div class="muted" style="margin-top:8px;">${dt}</div>
+      `;
+      root.appendChild(card);
+    });
+  }
+
+  document.getElementById("btnMatches").onclick = async () => {
+    try {
+      const data = await api("/matches");
+      outMatches.textContent = pretty(data);
+      renderMatches(data);
+    } catch (e) {
+      outMatches.textContent = pretty(e);
+      document.getElementById("matchesHint").innerHTML = `<span class="err">Failed to load matches</span>`;
+    }
+  };
+
+  // -------- Create match --------
+  document.getElementById("btnCreate").onclick = async () => {
+    const status = document.getElementById("createStatus");
+    status.textContent = "Sending...";
+
+    const body = {
+      matchKey: document.getElementById("c_key").value.trim(),
+      dateTime: document.getElementById("c_dt").value.trim(),
+      homeCode: document.getElementById("c_home").value.trim(),
+      awayCode: document.getElementById("c_away").value.trim()
+    };
+
+    try {
+      const data = await api("/matches", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Role": "admin" },
+        body: JSON.stringify(body)
+      });
+      outCreate.textContent = pretty(data);
+      status.innerHTML = `<span class="ok">Created match: ${data.matchKey}</span>`;
+    } catch (e) {
+      outCreate.textContent = pretty(e);
+      status.innerHTML = `<span class="err">Create failed</span>`;
+    }
+  };
+
+  // -------- Add event --------
+  document.getElementById("btnEvent").onclick = async () => {
+    const status = document.getElementById("eventStatus");
+    status.textContent = "Sending...";
+
+    const key = document.getElementById("e_key").value.trim();
+    const body = {
+      type: document.getElementById("e_type").value,
+      teamCode: document.getElementById("e_team").value.trim(),
+      player: document.getElementById("e_player").value.trim(),
+      minute: Number(document.getElementById("e_min").value),
+      color: document.getElementById("e_color").value
+    };
+
+    try {
+      const data = await api(`/matches/${encodeURIComponent(key)}/events`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "X-Role": "admin" },
+        body: JSON.stringify(body)
+      });
+      outEvent.textContent = pretty(data);
+      status.innerHTML = `<span class="ok">Event added</span>`;
+    } catch (e) {
+      outEvent.textContent = pretty(e);
+      status.innerHTML = `<span class="err">Add event failed</span>`;
+    }
+  };
+
+  // -------- Finalize match --------
+  document.getElementById("btnFinalize").onclick = async () => {
+    const status = document.getElementById("finStatus");
+    status.textContent = "Sending...";
+
+    const key = document.getElementById("f_key").value.trim();
+    const body = {
+      homeGoals: Number(document.getElementById("f_hg").value),
+      awayGoals: Number(document.getElementById("f_ag").value),
+    };
+
+    try {
+      const data = await api(`/matches/${encodeURIComponent(key)}/finalize`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Role": "admin" },
+        body: JSON.stringify(body)
+      });
+      outFinalize.textContent = pretty(data);
+      status.innerHTML = `<span class="ok">Finalized: ${data.status}</span>`;
+    } catch (e) {
+      outFinalize.textContent = pretty(e);
+      status.innerHTML = `<span class="err">Finalize failed</span>`;
+    }
+  };
+
+  // -------- Table render --------
+  function renderTable(data) {
+    const wrap = document.getElementById("tableWrap");
+    const rows = data.table || [];
+    if (rows.length === 0) {
+      wrap.innerHTML = `<div class="muted">No finished matches yet. Finalize a match to see points.</div>`;
+      return;
+    }
+
+    let html = `
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Team</th>
+            <th class="right">P</th>
+            <th class="right">W</th>
+            <th class="right">D</th>
+            <th class="right">L</th>
+            <th class="right">GF</th>
+            <th class="right">GA</th>
+            <th class="right">GD</th>
+            <th class="right">Pts</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    rows.forEach((r, i) => {
+      html += `
+        <tr>
+          <td>${i+1}</td>
+          <td>${r.teamCode} — ${r.teamName}</td>
+          <td class="right">${r.played}</td>
+          <td class="right">${r.wins}</td>
+          <td class="right">${r.draws}</td>
+          <td class="right">${r.losses}</td>
+          <td class="right">${r.goalsFor}</td>
+          <td class="right">${r.goalsAgainst}</td>
+          <td class="right">${r.goalDiff}</td>
+          <td class="right"><b>${r.points}</b></td>
+        </tr>
+      `;
+    });
+
+    html += `</tbody></table>`;
+    wrap.innerHTML = html;
+  }
+
+  document.getElementById("btnTable").onclick = async () => {
+    try {
+      const data = await api("/table");
+      outTable.textContent = pretty(data);
+      renderTable(data);
+    } catch (e) {
+      outTable.textContent = pretty(e);
+      document.getElementById("tableWrap").innerHTML = `<div class="muted"><span class="err">Failed to load table</span></div>`;
+    }
+  };
+
+  // Auto-load teams once (nice UX)
+  (async function init() {
+    try {
+      const data = await api("/teams");
+      outTeams.textContent = pretty(data);
+      fillSelectors(data.teams || []);
+      document.getElementById("teamsHint").innerHTML = `<span class="ok">Loaded ${data.count} teams</span>`;
+    } catch {
+      document.getElementById("teamsHint").innerHTML = `<span class="err">Auto-load teams failed</span>`;
+    }
+  })();
+</script>
+
+</body>
+</html>
