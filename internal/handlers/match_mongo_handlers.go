@@ -17,20 +17,8 @@ type MatchMongoHandler struct {
 	events  chan<- models.EventLog
 }
 
-func NewMatchMongoHandler(
-	matches *repository.MatchRepo,
-	teams *repository.TeamRepo,
-	events chan<- models.EventLog,
-) *MatchMongoHandler {
-	return &MatchMongoHandler{
-		matches: matches,
-		teams:   teams,
-		events:  events,
-	}
-}
-
-func isAdmin(r *http.Request) bool {
-	return strings.ToLower(strings.TrimSpace(r.Header.Get("X-Role"))) == "admin"
+func NewMatchMongoHandler(matches *repository.MatchRepo, teams *repository.TeamRepo, events chan<- models.EventLog) *MatchMongoHandler {
+	return &MatchMongoHandler{matches: matches, teams: teams, events: events}
 }
 
 func (h *MatchMongoHandler) ListMatches(w http.ResponseWriter, r *http.Request) {
@@ -45,15 +33,10 @@ func (h *MatchMongoHandler) ListMatches(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, 200, map[string]any{"matches": list, "count": len(list)})
 }
 
+// ✅ Create match: matchKey auto-generated
 func (h *MatchMongoHandler) CreateMatch(w http.ResponseWriter, r *http.Request) {
-	if !isAdmin(r) {
-		writeJSON(w, 403, map[string]string{"error": "admin only (X-Role: admin)"})
-		return
-	}
-
 	var req struct {
-		MatchKey string `json:"matchKey"`
-		DateTime string `json:"dateTime"` // ISO string
+		DateTime string `json:"dateTime"` // RFC3339
 		HomeCode string `json:"homeCode"`
 		AwayCode string `json:"awayCode"`
 	}
@@ -62,18 +45,22 @@ func (h *MatchMongoHandler) CreateMatch(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	req.MatchKey = strings.TrimSpace(req.MatchKey)
 	req.HomeCode = strings.ToUpper(strings.TrimSpace(req.HomeCode))
 	req.AwayCode = strings.ToUpper(strings.TrimSpace(req.AwayCode))
+	req.DateTime = strings.TrimSpace(req.DateTime)
 
-	if req.MatchKey == "" || req.HomeCode == "" || req.AwayCode == "" || req.DateTime == "" {
-		writeJSON(w, 400, map[string]string{"error": "matchKey, dateTime, homeCode, awayCode required"})
+	if req.HomeCode == "" || req.AwayCode == "" || req.DateTime == "" {
+		writeJSON(w, 400, map[string]string{"error": "dateTime, homeCode, awayCode required"})
+		return
+	}
+	if req.HomeCode == req.AwayCode {
+		writeJSON(w, 400, map[string]string{"error": "homeCode and awayCode must differ"})
 		return
 	}
 
 	dt, err := time.Parse(time.RFC3339, req.DateTime)
 	if err != nil {
-		writeJSON(w, 400, map[string]string{"error": "dateTime must be RFC3339, e.g. 2026-02-10T18:30:00Z"})
+		writeJSON(w, 400, map[string]string{"error": "dateTime must be RFC3339"})
 		return
 	}
 
@@ -90,54 +77,39 @@ func (h *MatchMongoHandler) CreateMatch(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, 400, map[string]string{"error": "awayCode not found"})
 		return
 	}
-	if req.HomeCode == req.AwayCode {
-		writeJSON(w, 400, map[string]string{"error": "homeCode and awayCode must differ"})
-		return
-	}
+
+	// ✅ unique matchKey
+	matchKey := req.HomeCode + "-" + req.AwayCode + "-" + time.Now().Format("20060102-150405")
 
 	m := models.Match{
-		MatchKey:  req.MatchKey,
+		MatchKey:  matchKey,
 		DateTime:  dt,
 		HomeCode:  req.HomeCode,
 		AwayCode:  req.AwayCode,
 		HomeGoals: 0,
 		AwayGoals: 0,
 		Status:    models.Scheduled,
-		Goals:     []models.Goal{},
-		Cards:     []models.Card{},
+		Events:    []models.MatchEvent{},
 	}
 
 	created, err := h.matches.Create(ctx, m)
 	if err != nil {
-		// duplicate key => matchKey exists
-		writeJSON(w, 409, map[string]string{"error": "matchKey already exists"})
+		writeJSON(w, 500, map[string]string{"error": "create error"})
 		return
 	}
+
 	writeJSON(w, 201, created)
 }
 
+// ✅ PATCH /matches/{key}/events
 func (h *MatchMongoHandler) AddEvent(w http.ResponseWriter, r *http.Request) {
-	if !isAdmin(r) {
-		writeJSON(w, 403, map[string]string{"error": "admin only (X-Role: admin)"})
-		return
-	}
-
-	key := strings.TrimPrefix(r.URL.Path, "/matches/")
-	key = strings.TrimSuffix(key, "/events")
-	key = strings.TrimSpace(key)
-
+	key := strings.TrimSpace(r.PathValue("key"))
 	if key == "" {
 		writeJSON(w, 400, map[string]string{"error": "missing match key"})
 		return
 	}
 
-	var req struct {
-		Type     string `json:"type"` // goal | card
-		TeamCode string `json:"teamCode"`
-		Player   string `json:"player"`
-		Minute   int    `json:"minute"`
-		Color    string `json:"color"` // for card
-	}
+	var req models.MatchEvent
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, 400, map[string]string{"error": "invalid JSON"})
 		return
@@ -146,20 +118,46 @@ func (h *MatchMongoHandler) AddEvent(w http.ResponseWriter, r *http.Request) {
 	req.Type = strings.ToLower(strings.TrimSpace(req.Type))
 	req.TeamCode = strings.ToUpper(strings.TrimSpace(req.TeamCode))
 	req.Player = strings.TrimSpace(req.Player)
-	req.Color = strings.ToLower(strings.TrimSpace(req.Color))
+	req.Detail = strings.TrimSpace(req.Detail)
+	req.CardColor = strings.ToLower(strings.TrimSpace(req.CardColor))
+	req.PlayerOut = strings.TrimSpace(req.PlayerOut)
+	req.PlayerIn = strings.TrimSpace(req.PlayerIn)
 
-	if req.Type != "goal" && req.Type != "card" {
-		writeJSON(w, 400, map[string]string{"error": "type must be 'goal' or 'card'"})
+	if req.Type == "" || req.TeamCode == "" || req.Minute <= 0 || req.Minute > 130 {
+		writeJSON(w, 400, map[string]string{"error": "type, teamCode, minute required (minute 1..130)"})
 		return
 	}
-	if req.TeamCode == "" || req.Player == "" || req.Minute <= 0 || req.Minute > 130 {
-		writeJSON(w, 400, map[string]string{"error": "teamCode, player, minute required (minute 1..130)"})
+
+	allowed := map[string]bool{"goal": true, "card": true, "injury": true, "var": true, "sub": true}
+	if !allowed[req.Type] {
+		writeJSON(w, 400, map[string]string{"error": "type must be goal|card|injury|var|sub"})
 		return
+	}
+
+	// validation by type
+	if req.Type == "goal" {
+		if req.Player == "" {
+			writeJSON(w, 400, map[string]string{"error": "goal requires player"})
+			return
+		}
+	}
+	if req.Type == "card" {
+		if req.Player == "" || (req.CardColor != "yellow" && req.CardColor != "red") {
+			writeJSON(w, 400, map[string]string{"error": "card requires player and cardColor yellow|red"})
+			return
+		}
+	}
+	if req.Type == "sub" {
+		if req.PlayerOut == "" || req.PlayerIn == "" {
+			writeJSON(w, 400, map[string]string{"error": "sub requires playerOut and playerIn"})
+			return
+		}
 	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
 	defer cancel()
 
+	// Ensure team exists
 	ok, err := h.teams.Exists(ctx, req.TeamCode)
 	if err != nil || !ok {
 		writeJSON(w, 400, map[string]string{"error": "teamCode not found"})
@@ -176,36 +174,18 @@ func (h *MatchMongoHandler) AddEvent(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 404, map[string]string{"error": "match not found"})
 		return
 	}
-	// Only allow events for teams participating
+	if m.Status == models.Finished {
+		writeJSON(w, 409, map[string]string{"error": "match already finished"})
+		return
+	}
+	// Only allow events for teams playing in this match
 	if req.TeamCode != m.HomeCode && req.TeamCode != m.AwayCode {
 		writeJSON(w, 400, map[string]string{"error": "teamCode is not playing in this match"})
 		return
 	}
-	if m.Status != models.Scheduled {
-		writeJSON(w, 409, map[string]string{"error": "match is not scheduled"})
-		return
-	}
 
-	if req.Type == "goal" {
-		err = h.matches.AddGoal(ctx, key, models.Goal{
-			TeamCode: req.TeamCode,
-			Player:   req.Player,
-			Minute:   req.Minute,
-		})
-	} else {
-		if req.Color != "yellow" && req.Color != "red" {
-			writeJSON(w, 400, map[string]string{"error": "card color must be 'yellow' or 'red'"})
-			return
-		}
-		err = h.matches.AddCard(ctx, key, models.Card{
-			TeamCode: req.TeamCode,
-			Player:   req.Player,
-			Color:    req.Color,
-			Minute:   req.Minute,
-		})
-	}
-
-	if err != nil {
+	// ✅ repo allows status scheduled OR live (your $in filter)
+	if err := h.matches.AddEvent(ctx, key, m, req); err != nil {
 		writeJSON(w, 500, map[string]string{"error": "update error"})
 		return
 	}
@@ -213,26 +193,70 @@ func (h *MatchMongoHandler) AddEvent(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]string{"status": "ok"})
 }
 
-func (h *MatchMongoHandler) Finalize(w http.ResponseWriter, r *http.Request) {
-	if !isAdmin(r) {
-		writeJSON(w, 403, map[string]string{"error": "admin only (X-Role: admin)"})
+// ✅ PATCH /matches/{key}/status
+func (h *MatchMongoHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
+	key := strings.TrimSpace(r.PathValue("key"))
+	if key == "" {
+		writeJSON(w, 400, map[string]string{"error": "missing match key"})
 		return
 	}
 
-	key := strings.TrimPrefix(r.URL.Path, "/matches/")
-	key = strings.TrimSuffix(key, "/finalize")
-	key = strings.TrimSpace(key)
-
 	var req struct {
-		HomeGoals int `json:"homeGoals"`
-		AwayGoals int `json:"awayGoals"`
+		Status string `json:"status"` // scheduled | live | finished
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, 400, map[string]string{"error": "invalid JSON"})
 		return
 	}
-	if req.HomeGoals < 0 || req.AwayGoals < 0 {
-		writeJSON(w, 400, map[string]string{"error": "goals must be >= 0"})
+
+	s := models.MatchStatus(strings.ToLower(strings.TrimSpace(req.Status)))
+	if s != models.Scheduled && s != models.Live && s != models.Finished {
+		writeJSON(w, 400, map[string]string{"error": "status must be scheduled|live|finished"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	defer cancel()
+
+	m, found, err := h.matches.FindByKey(ctx, key)
+	if err != nil {
+		writeJSON(w, 500, map[string]string{"error": "db error"})
+		return
+	}
+	if !found {
+		writeJSON(w, 404, map[string]string{"error": "match not found"})
+		return
+	}
+
+	// rule: finished cannot go back
+	if m.Status == models.Finished && s != models.Finished {
+		writeJSON(w, 409, map[string]string{"error": "finished match cannot be changed"})
+		return
+	}
+
+	// if status finished -> use Finalize too (keeps rules consistent)
+	if s == models.Finished {
+		if err := h.matches.Finalize(ctx, key); err != nil {
+			writeJSON(w, 500, map[string]string{"error": "finalize error"})
+			return
+		}
+		writeJSON(w, 200, map[string]string{"status": "finished"})
+		return
+	}
+
+	if err := h.matches.SetStatus(ctx, key, s); err != nil {
+		writeJSON(w, 500, map[string]string{"error": "update error"})
+		return
+	}
+
+	writeJSON(w, 200, map[string]string{"status": string(s)})
+}
+
+// ✅ POST /matches/{key}/finalize
+func (h *MatchMongoHandler) Finalize(w http.ResponseWriter, r *http.Request) {
+	key := strings.TrimSpace(r.PathValue("key"))
+	if key == "" {
+		writeJSON(w, 400, map[string]string{"error": "missing match key"})
 		return
 	}
 
@@ -249,7 +273,7 @@ func (h *MatchMongoHandler) Finalize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.matches.Finalize(ctx, key, req.HomeGoals, req.AwayGoals); err != nil {
+	if err := h.matches.Finalize(ctx, key); err != nil {
 		writeJSON(w, 500, map[string]string{"error": "finalize error"})
 		return
 	}

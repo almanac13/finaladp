@@ -19,7 +19,6 @@ func NewMatchRepo(db *mongo.Database) *MatchRepo {
 }
 
 func (r *MatchRepo) EnsureIndexes(ctx context.Context) error {
-	// matchKey unique
 	_, err := r.col.Indexes().CreateOne(ctx, mongo.IndexModel{
 		Keys:    bson.D{{Key: "matchKey", Value: 1}},
 		Options: options.Index().SetUnique(true),
@@ -62,30 +61,39 @@ func (r *MatchRepo) FindByKey(ctx context.Context, key string) (models.Match, bo
 	return m, true, nil
 }
 
-func (r *MatchRepo) AddGoal(ctx context.Context, key string, g models.Goal) error {
+// ✅ Universal event insert (goal increments score)
+func (r *MatchRepo) AddEvent(ctx context.Context, key string, match models.Match, e models.MatchEvent) error {
+	update := bson.M{
+		"$push": bson.M{"events": e},
+	}
+
+	// If goal -> auto score update
+	if e.Type == "goal" {
+		if e.TeamCode == match.HomeCode {
+			update["$inc"] = bson.M{"homeGoals": 1}
+		} else if e.TeamCode == match.AwayCode {
+			update["$inc"] = bson.M{"awayGoals": 1}
+		}
+	}
+
 	_, err := r.col.UpdateOne(ctx,
-		bson.M{"matchKey": key, "status": models.Scheduled},
-		bson.M{"$push": bson.M{"goals": g}},
+		bson.M{"matchKey": key, "status": bson.M{"$in": []models.MatchStatus{models.Scheduled, models.Live}}},
+		update,
 	)
 	return err
 }
-
-func (r *MatchRepo) AddCard(ctx context.Context, key string, c models.Card) error {
-	_, err := r.col.UpdateOne(ctx,
-		bson.M{"matchKey": key, "status": models.Scheduled},
-		bson.M{"$push": bson.M{"cards": c}},
-	)
-	return err
-}
-
-func (r *MatchRepo) Finalize(ctx context.Context, key string, homeGoals, awayGoals int) error {
+func (r *MatchRepo) SetStatus(ctx context.Context, key string, status models.MatchStatus) error {
 	_, err := r.col.UpdateOne(ctx,
 		bson.M{"matchKey": key},
-		bson.M{"$set": bson.M{
-			"homeGoals": homeGoals,
-			"awayGoals": awayGoals,
-			"status":    models.Finished,
-		}},
+		bson.M{"$set": bson.M{"status": status}},
+	)
+	return err
+}
+
+func (r *MatchRepo) Finalize(ctx context.Context, key string) error {
+	_, err := r.col.UpdateOne(ctx,
+		bson.M{"matchKey": key},
+		bson.M{"$set": bson.M{"status": models.Finished}},
 	)
 	return err
 }

@@ -1,447 +1,728 @@
 <!doctype html>
-<html lang="en">
+<html>
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>EPL-Connect — EPL Core</title>
+  <title>League Connect</title>
   <style>
-    body { font-family: Arial, sans-serif; max-width: 1200px; margin: 24px auto; padding: 0 12px; background:#f6f7fb; }
-    h1 { margin: 0 0 6px 0; }
-    .small { color:#666; font-size: 13px; margin-bottom: 12px; }
-    code { background:#eee; padding: 1px 6px; border-radius: 6px; }
-
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
-    .card { background:#fff; border: 1px solid #e6e6e6; border-radius: 14px; padding: 14px; box-shadow: 0 8px 20px rgba(0,0,0,.06); }
-
-    label { display:block; font-size: 12px; color:#555; margin-top: 8px; }
-    input, select { width: 100%; padding: 9px; margin-top: 4px; border:1px solid #ddd; border-radius:10px; }
-    button { padding: 9px 12px; margin-top: 10px; cursor:pointer; border:0; border-radius:10px; background:#111; color:#fff; }
-    button:active { transform: translateY(1px); }
-
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin-top: 12px; }
-    .match-card { background: #121212; color: #fff; border-radius: 14px; padding: 14px; box-shadow: 0 12px 26px rgba(0,0,0,.25); }
-    .match-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
-    .score { font-size: 24px; font-weight: 800; margin: 6px 0; letter-spacing: .5px; }
-    .meta { display:flex; align-items:center; justify-content:space-between; margin-top: 8px; gap: 8px; }
-    .pill { display: inline-block; padding: 5px 10px; background: #1e88e5; border-radius: 999px; font-size: 12px; font-weight: 700; }
-    .pill.gray { background:#2b2b2b; }
-    .idtag { font-size: 12px; opacity: .75; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-
-    .badge { display: inline-block; padding: 7px 12px; border-radius: 999px; font-size: 13px; font-weight: 800; }
-    .badge.ok { background: #a5d6a7; color: #000; }
-    .badge.warn { background: #ffcc80; color: #000; }
-    .badge.err { background: #ef9a9a; color: #000; }
-
-    .rawbtn { margin-top: 10px; font-size: 12px; background:#fff; color:#111; border:1px solid #ddd; }
-    pre { background:#0b0b0b; color:#e6e6e6; padding: 12px; border-radius: 12px; overflow:auto; margin-top: 10px; }
-    .muted { color:#777; font-size: 13px; margin-top: 10px; }
-    .ok { color:#1b5e20; font-weight: 700; }
-    .err { color:#b71c1c; font-weight: 700; }
-
-    table { width:100%; border-collapse: collapse; margin-top: 12px; }
-    th, td { border-bottom: 1px solid #eee; padding: 8px; text-align: left; font-size: 13px; }
-    th { font-size: 12px; color:#666; }
+    body { font-family: Arial, sans-serif; max-width: 1100px; margin: 20px auto; padding: 0 12px; }
+    h2 { margin-top: 22px; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; align-items: center; }
+    input, select, button { padding: 8px; }
+    button { cursor: pointer; }
+    .card { border: 1px solid #ddd; padding: 12px; border-radius: 12px; margin: 12px 0; }
+    small { color: #666; }
+    .muted { color: #555; }
+    .pill { display:inline-block; padding:4px 10px; border:1px solid #ddd; border-radius:999px; background:#fafafa; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background: #f7f7f7; }
     .right { text-align:right; }
+    .hidden { display: none !important; }
+    .favRow { background: #fff7d6; }
+    .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 900px){ .grid2 { grid-template-columns: 1fr; } }
+    .eventline { padding: 6px 8px; border: 1px solid #eee; border-radius: 10px; margin-bottom: 6px; background:#fcfcfc; }
+    .tableTitle { margin: 14px 0 6px; }
   </style>
 </head>
-
 <body>
-  <h1>EPL-Connect (EPL Core)</h1>
-  <div class="small">
-    Endpoints: <code>/teams</code>, <code>/matches</code>, <code>/matches/{key}/events</code>, <code>/matches/{key}/finalize</code>, <code>/table</code>.
-    Admin header: <code>X-Role: admin</code>.
+
+<h1>League-Connect</h1>
+
+<div class="card">
+  <h2>Register / Login</h2>
+
+  <div class="row">
+    <input id="email" placeholder="email" />
+    <input id="password" type="password" placeholder="password" />
   </div>
 
   <div class="row">
-    <!-- TEAMS -->
-    <div class="card">
-      <h3>1) Teams</h3>
-      <button id="btnTeams">GET /teams</button>
-      <div id="teamsHint" class="muted">Load EPL teams seeded in MongoDB.</div>
+    <select id="regLeague"></select>
+    <select id="regTeam"></select>
+    <button onclick="register()">Register</button>
+    <button onclick="login()">Login</button>
+    <button onclick="logout()">Logout</button>
+  </div>
 
-      <div style="margin-top:10px;">
-        <label>Home team</label>
-        <select id="selHome"></select>
+  <div class="row">
+    <span class="pill">Status: <b id="authStatus">not logged</b></span>
+    <span class="pill">Role: <b id="roleLabel">guest</b></span>
+    <span class="pill">My League: <b id="myLeague">-</b></span>
+    <span class="pill">My Team: <b id="myTeam">-</b></span>
+  </div>
 
-        <label>Away team</label>
-        <select id="selAway"></select>
-      </div>
+  <small class="muted">
+    After login, UI filters by your league and highlights your team.
+  </small>
+</div>
 
-      <button class="rawbtn" id="toggleRawTeams">Show raw JSON</button>
-      <pre id="outTeams" style="display:none">{}</pre>
+<div class="card" id="userUI">
+  <h2>User Panel</h2>
+
+  <div class="row">
+    <button onclick="loadMatchesUI()">Matches</button>
+
+    <select id="tableLeague"></select>
+    <button onclick="loadTableSelectedLeague()">Table (Selected League)</button>
+    <button onclick="loadAllLeagueTables()">Tables (All Leagues)</button>
+
+    <button onclick="loadStatsUI()">Stats</button>
+  </div>
+
+  <h3>Matches</h3>
+  <div id="matchesUI" class="muted">(press Matches)</div>
+
+  <h3>Table</h3>
+  <div id="tableUI" class="muted">(press Table)</div>
+
+  <h3>Statistics</h3>
+  <div id="statsUI" class="muted">(press Stats)</div>
+</div>
+
+<div class="card hidden" id="adminUI">
+  <h2>Admin Panel</h2>
+  <div id="adminMsg" class="muted" style="margin:8px 0;"></div>
+
+  <div class="card">
+    <h3>Create Match</h3>
+    <div class="row">
+      <select id="homeSelect"></select>
+      <select id="awaySelect"></select>
     </div>
-
-    <!-- TABLE -->
-    <div class="card">
-      <h3>2) EPL Table</h3>
-      <button id="btnTable">GET /table</button>
-      <div id="tableWrap"></div>
-
-      <button class="rawbtn" id="toggleRawTable">Show raw JSON</button>
-      <pre id="outTable" style="display:none">{}</pre>
-    </div>
-
-    <!-- MATCHES LIST -->
-    <div class="card">
-      <h3>3) Matches</h3>
-      <button id="btnMatches">GET /matches</button>
-      <div id="matches" class="grid"></div>
-      <div id="matchesHint" class="muted">Load scheduled & finished matches.</div>
-
-      <button class="rawbtn" id="toggleRawMatches">Show raw JSON</button>
-      <pre id="outMatches" style="display:none">{}</pre>
-    </div>
-
-    <!-- CREATE MATCH -->
-    <div class="card">
-      <h3>4) Create match (admin)</h3>
-
-      <label>Match key</label>
-      <input id="c_key" value="gw1-ars-che" />
-
-      <label>Date & time (RFC3339)</label>
-      <input id="c_dt" value="2026-02-10T18:30:00Z" />
-
-      <label>Home code</label>
-      <input id="c_home" value="ARS" />
-
-      <label>Away code</label>
-      <input id="c_away" value="CHE" />
-
-      <div class="muted">Tip: you can also select teams on the left and click “Fill from selectors”.</div>
-      <button id="btnFillCodes">Fill from selectors</button>
-
-      <button id="btnCreate">POST /matches</button>
-      <div id="createStatus" class="muted"></div>
-
-      <button class="rawbtn" id="toggleRawCreate">Show raw JSON</button>
-      <pre id="outCreate" style="display:none">{}</pre>
-    </div>
-
-    <!-- ADD EVENT -->
-    <div class="card">
-      <h3>5) Add event (admin)</h3>
-
-      <label>Match key</label>
-      <input id="e_key" value="gw1-ars-che" />
-
-      <label>Type</label>
-      <select id="e_type">
-        <option value="goal">goal</option>
-        <option value="card">card</option>
-      </select>
-
-      <label>Team code</label>
-      <input id="e_team" value="ARS" />
-
-      <label>Player</label>
-      <input id="e_player" value="Saka" />
-
-      <label>Minute</label>
-      <input id="e_min" type="number" value="57" />
-
-      <label>Card color (only for card)</label>
-      <select id="e_color">
-        <option value="yellow">yellow</option>
-        <option value="red">red</option>
-      </select>
-
-      <button id="btnEvent">PATCH /matches/{key}/events</button>
-      <div id="eventStatus" class="muted"></div>
-
-      <button class="rawbtn" id="toggleRawEvent">Show raw JSON</button>
-      <pre id="outEvent" style="display:none">{}</pre>
-    </div>
-
-    <!-- FINALIZE -->
-    <div class="card">
-      <h3>6) Finalize match (admin)</h3>
-
-      <label>Match key</label>
-      <input id="f_key" value="gw1-ars-che" />
-
-      <label>Home goals</label>
-      <input id="f_hg" type="number" value="1" />
-
-      <label>Away goals</label>
-      <input id="f_ag" type="number" value="0" />
-
-      <button id="btnFinalize">POST /matches/{key}/finalize</button>
-      <div id="finStatus" class="muted"></div>
-
-      <button class="rawbtn" id="toggleRawFinalize">Show raw JSON</button>
-      <pre id="outFinalize" style="display:none">{}</pre>
+    <div class="row">
+      <input type="date" id="datePick">
+      <input type="time" id="timePick">
+      <button onclick="createMatch()">Create</button>
     </div>
   </div>
 
-<script>
-  function pretty(x) { return JSON.stringify(x, null, 2); }
+  <div class="card">
+    <h3>Manage Match (scheduled / live only)</h3>
 
-  async function api(path, options = {}) {
-    const res = await fetch(path, options);
-    const text = await res.text();
-    let data;
-    try { data = JSON.parse(text); } catch { data = { raw: text }; }
-    if (!res.ok) throw { status: res.status, data };
-    return data;
-  }
+    <div class="row">
+      <select id="matchSelect" style="min-width: 540px;"></select>
+      <button onclick="refreshMatches()">Refresh</button>
+    </div>
 
-  function toggle(el) {
-    el.style.display = (el.style.display === "none") ? "block" : "none";
-  }
+    <div class="row" style="gap:12px;">
+      <span class="pill" id="selKey">matchKey: -</span>
+      <span class="pill" id="selScore">score: -</span>
+      <span class="pill" id="selStatus">status: -</span>
+      <span class="pill" id="selTime">kickoff: -</span>
+    </div>
 
-  // Outputs
-  const outTeams = document.getElementById("outTeams");
-  const outTable = document.getElementById("outTable");
-  const outMatches = document.getElementById("outMatches");
-  const outCreate = document.getElementById("outCreate");
-  const outEvent = document.getElementById("outEvent");
-  const outFinalize = document.getElementById("outFinalize");
+    <div class="row">
+      <button onclick="setStatus('scheduled')">Set Scheduled</button>
+      <button onclick="setStatus('live')">Start Live</button>
+      <button onclick="finalizeSelected()">Finalize (Finished)</button>
+    </div>
 
-  // Toggles
-  document.getElementById("toggleRawTeams").onclick = () => toggle(outTeams);
-  document.getElementById("toggleRawTable").onclick = () => toggle(outTable);
-  document.getElementById("toggleRawMatches").onclick = () => toggle(outMatches);
-  document.getElementById("toggleRawCreate").onclick = () => toggle(outCreate);
-  document.getElementById("toggleRawEvent").onclick = () => toggle(outEvent);
-  document.getElementById("toggleRawFinalize").onclick = () => toggle(outFinalize);
+    <div class="grid2">
+      <div>
+        <h4>Add Event</h4>
 
-  // -------- Teams + selectors --------
-  function fillSelectors(teams) {
-    const home = document.getElementById("selHome");
-    const away = document.getElementById("selAway");
-    home.innerHTML = "";
-    away.innerHTML = "";
-    teams.forEach(t => {
-      const opt1 = document.createElement("option");
-      opt1.value = t.code;
-      opt1.textContent = `${t.code} — ${t.name}`;
-      home.appendChild(opt1);
+        <div class="row">
+          <select id="eventType" onchange="onTypeChange()">
+            <option value="goal">Goal</option>
+            <option value="card">Card</option>
+            <option value="injury">Injury</option>
+            <option value="var">VAR</option>
+            <option value="sub">Substitution</option>
+          </select>
 
-      const opt2 = document.createElement("option");
-      opt2.value = t.code;
-      opt2.textContent = `${t.code} — ${t.name}`;
-      away.appendChild(opt2);
-    });
-    // defaults
-    home.value = "ARS";
-    away.value = "CHE";
-  }
-
-  document.getElementById("btnTeams").onclick = async () => {
-    try {
-      const data = await api("/teams");
-      outTeams.textContent = pretty(data);
-      fillSelectors(data.teams || []);
-      document.getElementById("teamsHint").innerHTML = `<span class="ok">Loaded ${data.count} teams</span>`;
-    } catch (e) {
-      outTeams.textContent = pretty(e);
-      document.getElementById("teamsHint").innerHTML = `<span class="err">Failed to load teams</span>`;
-    }
-  };
-
-  document.getElementById("btnFillCodes").onclick = () => {
-    document.getElementById("c_home").value = document.getElementById("selHome").value;
-    document.getElementById("c_away").value = document.getElementById("selAway").value;
-  };
-
-  // -------- Matches list as cards --------
-  function renderMatches(data) {
-    const root = document.getElementById("matches");
-    const hint = document.getElementById("matchesHint");
-    root.innerHTML = "";
-
-    const list = data.matches || [];
-    if (list.length === 0) {
-      hint.textContent = "No matches yet. Create one (admin).";
-      return;
-    }
-    hint.textContent = `Loaded ${data.count} match(es).`;
-
-    list.forEach(m => {
-      const card = document.createElement("div");
-      card.className = "match-card";
-
-      const score = (m.status === "finished")
-        ? `${m.homeGoals}-${m.awayGoals}`
-        : "scheduled";
-
-      const dt = m.dateTime ? new Date(m.dateTime).toISOString() : "";
-
-      card.innerHTML = `
-        <div class="match-title">${m.homeCode} vs ${m.awayCode}</div>
-        <div class="score">${score}</div>
-        <div class="meta">
-          <span class="pill ${m.status === "finished" ? "" : "gray"}">${m.status}</span>
-          <span class="idtag">${m.matchKey}</span>
+          <select id="teamSelect"></select>
+          <input id="minute" type="number" min="1" max="130" placeholder="minute" style="width:120px;" />
         </div>
-        <div class="muted" style="margin-top:8px;">${dt}</div>
-      `;
-      root.appendChild(card);
-    });
+
+        <div class="row" id="goalFields">
+          <input id="player" placeholder="player" style="min-width:240px;" />
+        </div>
+
+        <div class="row" id="cardFields" style="display:none">
+          <input id="cardPlayer" placeholder="player" style="min-width:240px;" />
+          <select id="cardColor">
+            <option value="yellow">yellow</option>
+            <option value="red">red</option>
+          </select>
+        </div>
+
+        <div class="row" id="subFields" style="display:none">
+          <input id="playerOut" placeholder="player out" style="min-width:220px;" />
+          <input id="playerIn" placeholder="player in" style="min-width:220px;" />
+        </div>
+
+        <div class="row" id="detailFields" style="display:none">
+          <input id="detail" placeholder="detail (optional)" style="min-width:460px; flex:1;" />
+        </div>
+
+        <div class="row">
+          <button onclick="addEvent()">Add Event</button>
+        </div>
+      </div>
+
+      <div>
+        <h4>Selected match events</h4>
+        <div id="eventsList" class="muted">(select match)</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let token = localStorage.getItem("token") || "";
+let role = "guest";
+let favoriteLeague = "";
+let favoriteTeam = "";
+
+const authStatus = document.getElementById("authStatus");
+const roleLabel  = document.getElementById("roleLabel");
+const adminUI    = document.getElementById("adminUI");
+
+const myLeagueEl = document.getElementById("myLeague");
+const myTeamEl   = document.getElementById("myTeam");
+
+const matchesUI = document.getElementById("matchesUI");
+const tableUI   = document.getElementById("tableUI");
+const statsUI   = document.getElementById("statsUI");
+
+const regLeague = document.getElementById("regLeague");
+const regTeam   = document.getElementById("regTeam");
+const tableLeague = document.getElementById("tableLeague");
+
+const homeSelect = document.getElementById("homeSelect");
+const awaySelect = document.getElementById("awaySelect");
+
+const matchSelect = document.getElementById("matchSelect");
+const teamSelect  = document.getElementById("teamSelect");
+
+const selKey    = document.getElementById("selKey");
+const selScore  = document.getElementById("selScore");
+const selStatus = document.getElementById("selStatus");
+const selTime   = document.getElementById("selTime");
+const eventsList = document.getElementById("eventsList");
+
+const adminMsg = document.getElementById("adminMsg");
+function showAdminMsg(txt){ if(adminMsg) adminMsg.textContent = txt; }
+
+let leagues = [];
+let teams = [];
+let matchesCache = [];
+let selectedMatch = null;
+
+function setAuthText(t){ authStatus.textContent = t; }
+function authHeaders(){ return token ? {"Authorization":"Bearer "+token} : {}; }
+
+function renderRoleUI(){
+  roleLabel.textContent = role;
+  myLeagueEl.textContent = favoriteLeague || "-";
+  myTeamEl.textContent = favoriteTeam || "-";
+  if(String(role).toLowerCase() === "admin") adminUI.classList.remove("hidden");
+  else adminUI.classList.add("hidden");
+}
+
+function setRoleAndFav(r, favL, favT){
+  role = String(r || "guest").toLowerCase();
+  favoriteLeague = favL || "";
+  favoriteTeam = favT || "";
+  renderRoleUI();
+
+  // default table dropdown to user's league
+  if(favoriteLeague && leagues.includes(favoriteLeague)){
+    tableLeague.value = favoriteLeague;
+  }
+}
+
+function decodeJwt(tok){
+  try{
+    const payload = tok.split(".")[1];
+    return JSON.parse(atob(payload.replace(/-/g,'+').replace(/_/g,'/')));
+  }catch{
+    return {};
+  }
+}
+
+function fmtDate(iso){
+  try { return new Date(iso).toLocaleString(); } catch { return String(iso||"-"); }
+}
+
+async function fetchLeagues(){
+  const res = await fetch("/leagues");
+  const data = await res.json();
+  leagues = data.leagues || [];
+
+  regLeague.innerHTML = "";
+  tableLeague.innerHTML = "";
+
+  for(const l of leagues){
+    const opt1 = document.createElement("option");
+    opt1.value = l;
+    opt1.textContent = l;
+    regLeague.appendChild(opt1);
+
+    const opt2 = document.createElement("option");
+    opt2.value = l;
+    opt2.textContent = l;
+    tableLeague.appendChild(opt2);
   }
 
-  document.getElementById("btnMatches").onclick = async () => {
-    try {
-      const data = await api("/matches");
-      outMatches.textContent = pretty(data);
-      renderMatches(data);
-    } catch (e) {
-      outMatches.textContent = pretty(e);
-      document.getElementById("matchesHint").innerHTML = `<span class="err">Failed to load matches</span>`;
-    }
+  regLeague.onchange = async () => {
+    await loadTeams(regLeague.value);
+    fillRegisterTeams();
   };
+}
 
-  // -------- Create match --------
-  document.getElementById("btnCreate").onclick = async () => {
-    const status = document.getElementById("createStatus");
-    status.textContent = "Sending...";
+async function loadTeams(league=""){
+  const url = league ? `/teams?league=${encodeURIComponent(league)}` : "/teams";
+  const res = await fetch(url);
+  const data = await res.json();
+  teams = data.teams || [];
 
-    const body = {
-      matchKey: document.getElementById("c_key").value.trim(),
-      dateTime: document.getElementById("c_dt").value.trim(),
-      homeCode: document.getElementById("c_home").value.trim(),
-      awayCode: document.getElementById("c_away").value.trim()
-    };
+  homeSelect.innerHTML = "";
+  awaySelect.innerHTML = "";
+  for(const t of teams){
+    const o1 = document.createElement("option");
+    o1.value = t.code;
+    o1.textContent = `${t.name} (${t.code})${t.league ? " - " + t.league : ""}`;
+    homeSelect.appendChild(o1);
 
-    try {
-      const data = await api("/matches", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Role": "admin" },
-        body: JSON.stringify(body)
-      });
-      outCreate.textContent = pretty(data);
-      status.innerHTML = `<span class="ok">Created match: ${data.matchKey}</span>`;
-    } catch (e) {
-      outCreate.textContent = pretty(e);
-      status.innerHTML = `<span class="err">Create failed</span>`;
-    }
-  };
+    const o2 = document.createElement("option");
+    o2.value = t.code;
+    o2.textContent = `${t.name} (${t.code})${t.league ? " - " + t.league : ""}`;
+    awaySelect.appendChild(o2);
+  }
+}
 
-  // -------- Add event --------
-  document.getElementById("btnEvent").onclick = async () => {
-    const status = document.getElementById("eventStatus");
-    status.textContent = "Sending...";
+function fillRegisterTeams(){
+  regTeam.innerHTML = "";
+  if(!teams || teams.length === 0){
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "(no teams loaded)";
+    regTeam.appendChild(opt);
+    return;
+  }
+  for(const t of teams){
+    const opt = document.createElement("option");
+    opt.value = t.code;
+    opt.textContent = `${t.name} (${t.code})`;
+    regTeam.appendChild(opt);
+  }
+}
 
-    const key = document.getElementById("e_key").value.trim();
-    const body = {
-      type: document.getElementById("e_type").value,
-      teamCode: document.getElementById("e_team").value.trim(),
-      player: document.getElementById("e_player").value.trim(),
-      minute: Number(document.getElementById("e_min").value),
-      color: document.getElementById("e_color").value
-    };
+async function register(){
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value.trim();
 
-    try {
-      const data = await api(`/matches/${encodeURIComponent(key)}/events`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", "X-Role": "admin" },
-        body: JSON.stringify(body)
-      });
-      outEvent.textContent = pretty(data);
-      status.innerHTML = `<span class="ok">Event added</span>`;
-    } catch (e) {
-      outEvent.textContent = pretty(e);
-      status.innerHTML = `<span class="err">Add event failed</span>`;
-    }
-  };
+  const favoriteLeague2 = regLeague.value;
+  const favoriteTeamCode = regTeam.value;
 
-  // -------- Finalize match --------
-  document.getElementById("btnFinalize").onclick = async () => {
-    const status = document.getElementById("finStatus");
-    status.textContent = "Sending...";
+  const res = await fetch("/auth/register", {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({
+      email,
+      password,
+      name: "User",
+      favoriteLeague: favoriteLeague2,
+      favoriteTeamCode
+    })
+  });
 
-    const key = document.getElementById("f_key").value.trim();
-    const body = {
-      homeGoals: Number(document.getElementById("f_hg").value),
-      awayGoals: Number(document.getElementById("f_ag").value),
-    };
+  const data = await res.json();
+  setAuthText(res.ok ? "registered" : JSON.stringify(data));
+}
 
-    try {
-      const data = await api(`/matches/${encodeURIComponent(key)}/finalize`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Role": "admin" },
-        body: JSON.stringify(body)
-      });
-      outFinalize.textContent = pretty(data);
-      status.innerHTML = `<span class="ok">Finalized: ${data.status}</span>`;
-    } catch (e) {
-      outFinalize.textContent = pretty(e);
-      status.innerHTML = `<span class="err">Finalize failed</span>`;
-    }
-  };
+async function login(){
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value.trim();
 
-  // -------- Table render --------
-  function renderTable(data) {
-    const wrap = document.getElementById("tableWrap");
-    const rows = data.table || [];
-    if (rows.length === 0) {
-      wrap.innerHTML = `<div class="muted">No finished matches yet. Finalize a match to see points.</div>`;
-      return;
-    }
+  const res = await fetch("/auth/login", {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({ email, password })
+  });
 
-    let html = `
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Team</th>
-            <th class="right">P</th>
-            <th class="right">W</th>
-            <th class="right">D</th>
-            <th class="right">L</th>
-            <th class="right">GF</th>
-            <th class="right">GA</th>
-            <th class="right">GD</th>
-            <th class="right">Pts</th>
-          </tr>
-        </thead>
-        <tbody>
-    `;
-
-    rows.forEach((r, i) => {
-      html += `
-        <tr>
-          <td>${i+1}</td>
-          <td>${r.teamCode} — ${r.teamName}</td>
-          <td class="right">${r.played}</td>
-          <td class="right">${r.wins}</td>
-          <td class="right">${r.draws}</td>
-          <td class="right">${r.losses}</td>
-          <td class="right">${r.goalsFor}</td>
-          <td class="right">${r.goalsAgainst}</td>
-          <td class="right">${r.goalDiff}</td>
-          <td class="right"><b>${r.points}</b></td>
-        </tr>
-      `;
-    });
-
-    html += `</tbody></table>`;
-    wrap.innerHTML = html;
+  const data = await res.json();
+  if(!data.token){
+    setAuthText(JSON.stringify(data));
+    return;
   }
 
-  document.getElementById("btnTable").onclick = async () => {
-    try {
-      const data = await api("/table");
-      outTable.textContent = pretty(data);
-      renderTable(data);
-    } catch (e) {
-      outTable.textContent = pretty(e);
-      document.getElementById("tableWrap").innerHTML = `<div class="muted"><span class="err">Failed to load table</span></div>`;
-    }
-  };
+  token = data.token;
+  localStorage.setItem("token", token);
 
-  // Auto-load teams once (nice UX)
-  (async function init() {
-    try {
-      const data = await api("/teams");
-      outTeams.textContent = pretty(data);
-      fillSelectors(data.teams || []);
-      document.getElementById("teamsHint").innerHTML = `<span class="ok">Loaded ${data.count} teams</span>`;
-    } catch {
-      document.getElementById("teamsHint").innerHTML = `<span class="err">Auto-load teams failed</span>`;
-    }
-  })();
+  const jwt = decodeJwt(token);
+  setRoleAndFav(jwt.role, jwt.favoriteLeague, jwt.favoriteTeam);
+
+  setAuthText("logged");
+  showAdminMsg("");
+
+  await refreshMatches();
+}
+
+function logout(){
+  token = "";
+  localStorage.removeItem("token");
+  setRoleAndFav("guest", "", "");
+  setAuthText("not logged");
+  showAdminMsg("");
+}
+
+function buildISO(){
+  const d = document.getElementById("datePick").value;
+  const t = document.getElementById("timePick").value;
+  if(!d || !t) return "";
+  return new Date(`${d}T${t}:00`).toISOString();
+}
+
+async function createMatch(){
+  if(role !== "admin"){ alert("Admin only"); return; }
+  const homeCode = homeSelect.value;
+  const awayCode = awaySelect.value;
+  const dateTime = buildISO();
+
+  if(!dateTime){ alert("Pick date and time"); return; }
+  if(homeCode === awayCode){ alert("Home and away must differ"); return; }
+
+  const res = await fetch("/matches", {
+    method:"POST",
+    headers:{ "Content-Type":"application/json", ...authHeaders() },
+    body: JSON.stringify({ homeCode, awayCode, dateTime })
+  });
+
+  const text = await res.text();
+  if(!res.ok){
+    showAdminMsg(`ERROR ${res.status}: ${text}`);
+    alert(`ERROR ${res.status}: ${text}`);
+    return;
+  }
+
+  showAdminMsg("OK: match created");
+  await refreshMatches();
+}
+
+function filterAdminMatches(all){
+  return all.filter(m => (m.status === "scheduled" || m.status === "live"));
+}
+
+function fillMatchesDropdown(){
+  const adminMatches = filterAdminMatches(matchesCache);
+
+  matchSelect.innerHTML = "";
+  if(adminMatches.length === 0){
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "(no scheduled/live matches)";
+    matchSelect.appendChild(opt);
+    selectedMatch = null;
+    renderSelected();
+    return;
+  }
+
+  for(const m of adminMatches){
+    const opt = document.createElement("option");
+    opt.value = m.matchKey;
+    opt.textContent = `${m.matchKey} | ${m.homeCode} vs ${m.awayCode} | ${m.homeGoals}-${m.awayGoals} | ${m.status}`;
+    matchSelect.appendChild(opt);
+  }
+
+  matchSelect.value = adminMatches[0].matchKey;
+  onMatchChange();
+}
+
+async function refreshMatches(){
+  const res = await fetch("/matches");
+  const data = await res.json();
+  matchesCache = data.matches || [];
+  fillMatchesDropdown();
+}
+
+matchSelect.addEventListener("change", onMatchChange);
+
+function onMatchChange(){
+  const key = matchSelect.value;
+  selectedMatch = matchesCache.find(m => m.matchKey === key) || null;
+  fillTeamSelectForSelected();
+  renderSelected();
+}
+
+function fillTeamSelectForSelected(){
+  teamSelect.innerHTML = "";
+  if(!selectedMatch){
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "(select match)";
+    teamSelect.appendChild(opt);
+    return;
+  }
+
+  const home = selectedMatch.homeCode;
+  const away = selectedMatch.awayCode;
+
+  const o1 = document.createElement("option");
+  o1.value = home;
+  o1.textContent = home;
+  teamSelect.appendChild(o1);
+
+  const o2 = document.createElement("option");
+  o2.value = away;
+  o2.textContent = away;
+  teamSelect.appendChild(o2);
+}
+
+function renderSelected(){
+  if(!selectedMatch){
+    selKey.textContent = "matchKey: -";
+    selScore.textContent = "score: -";
+    selStatus.textContent = "status: -";
+    selTime.textContent = "kickoff: -";
+    eventsList.textContent = "(select match)";
+    return;
+  }
+
+  selKey.textContent = "matchKey: " + selectedMatch.matchKey;
+  selScore.textContent = `score: ${selectedMatch.homeGoals}-${selectedMatch.awayGoals}`;
+  selStatus.textContent = "status: " + selectedMatch.status;
+  selTime.textContent = "kickoff: " + fmtDate(selectedMatch.dateTime);
+
+  const ev = (selectedMatch.events || []).slice().sort((a,b)=>(a.minute||0)-(b.minute||0));
+  if(ev.length === 0){
+    eventsList.innerHTML = `<div class="muted">(no events yet)</div>`;
+    return;
+  }
+
+  eventsList.innerHTML = "";
+  for(const e of ev){
+    const line = document.createElement("div");
+    line.className = "eventline";
+    line.textContent = `${e.minute || "-"}' ${String(e.type||"").toUpperCase()} ${e.teamCode||"-"}`;
+    eventsList.appendChild(line);
+  }
+}
+
+function onTypeChange(){
+  const t = document.getElementById("eventType").value;
+  document.getElementById("goalFields").style.display = (t==="goal") ? "flex" : "none";
+  document.getElementById("cardFields").style.display = (t==="card") ? "flex" : "none";
+  document.getElementById("subFields").style.display  = (t==="sub") ? "flex" : "none";
+  document.getElementById("detailFields").style.display = (t==="injury" || t==="var") ? "flex" : "none";
+}
+
+async function addEvent(){
+  if(role !== "admin"){ alert("Admin only"); return; }
+  if(!selectedMatch){ alert("Select a match first"); return; }
+
+  const matchKey = selectedMatch.matchKey;
+  const minute = parseInt(document.getElementById("minute").value, 10);
+  const teamCode = teamSelect.value;
+  const type = document.getElementById("eventType").value;
+
+  if(!minute || minute < 1 || minute > 130){ alert("Minute 1..130"); return; }
+  if(!teamCode){ alert("Choose team"); return; }
+
+  let payload = { type, teamCode, minute };
+
+  if(type === "goal"){
+    payload.player = document.getElementById("player").value.trim();
+    if(!payload.player){ alert("Goal needs player"); return; }
+  }
+
+  const res = await fetch(`/matches/${matchKey}/events`, {
+    method:"PATCH",
+    headers:{ "Content-Type":"application/json", ...authHeaders() },
+    body: JSON.stringify(payload)
+  });
+
+  const text = await res.text();
+  if(!res.ok){
+    showAdminMsg(`ERROR ${res.status}: ${text}`);
+    alert(`ERROR ${res.status}: ${text}`);
+    return;
+  }
+
+  showAdminMsg("OK: event added");
+  await refreshMatches();
+}
+
+async function setStatus(status){
+  if(role !== "admin"){ alert("Admin only"); return; }
+  if(!selectedMatch){ alert("Select a match first"); return; }
+
+  const matchKey = selectedMatch.matchKey;
+
+  const res = await fetch(`/matches/${matchKey}/status`, {
+    method:"PATCH",
+    headers:{ "Content-Type":"application/json", ...authHeaders() },
+    body: JSON.stringify({ status })
+  });
+
+  const text = await res.text();
+  if(!res.ok){
+    showAdminMsg(`ERROR ${res.status}: ${text}`);
+    alert(`ERROR ${res.status}: ${text}`);
+    return;
+  }
+
+  showAdminMsg(`OK: status -> ${status}`);
+  await refreshMatches();
+}
+
+async function finalizeSelected(){
+  if(role !== "admin"){ alert("Admin only"); return; }
+  if(!selectedMatch){ alert("Select a match first"); return; }
+
+  const matchKey = selectedMatch.matchKey;
+
+  const res = await fetch(`/matches/${matchKey}/finalize`, {
+    method:"POST",
+    headers:{ ...authHeaders() }
+  });
+
+  const text = await res.text();
+  if(!res.ok){
+    showAdminMsg(`ERROR ${res.status}: ${text}`);
+    alert(`ERROR ${res.status}: ${text}`);
+    return;
+  }
+
+  showAdminMsg("OK: finalized");
+  await refreshMatches();
+}
+
+// ===== USER: matches =====
+async function loadMatchesUI(){
+  const res = await fetch("/matches");
+  const data = await res.json();
+  const ms = data.matches || [];
+
+  if(ms.length === 0){
+    matchesUI.innerHTML = `<div class="muted">(no matches)</div>`;
+    return;
+  }
+
+  let html = `<table>
+    <thead><tr><th>Kickoff</th><th>Match</th><th class="right">Score</th><th>Status</th></tr></thead><tbody>`;
+  for(const m of ms){
+    const isFav = favoriteTeam && (m.homeCode === favoriteTeam || m.awayCode === favoriteTeam);
+    html += `<tr ${isFav ? 'class="favRow"' : ""}>
+      <td>${fmtDate(m.dateTime)}</td>
+      <td>${m.homeCode} vs ${m.awayCode}</td>
+      <td class="right">${m.homeGoals}-${m.awayGoals}</td>
+      <td>${m.status}</td>
+    </tr>`;
+  }
+  html += `</tbody></table>`;
+  matchesUI.innerHTML = html;
+}
+
+// ===== TABLE rendering helper =====
+function renderTableHTML(rows){
+  if(!rows || rows.length === 0){
+    return `<div class="muted">(no table yet — finalize matches)</div>`;
+  }
+
+  let html = `<table><thead><tr>
+    <th>#</th><th>Team</th>
+    <th class="right">P</th><th class="right">W</th><th class="right">D</th><th class="right">L</th>
+    <th class="right">GF</th><th class="right">GA</th><th class="right">GD</th><th class="right">Pts</th>
+  </tr></thead><tbody>`;
+
+  rows.forEach((r,i)=>{
+    html += `<tr ${r.isFavorite ? 'class="favRow"' : ""}>
+      <td>${i+1}</td>
+      <td>${r.teamName} (${r.teamCode})</td>
+      <td class="right">${r.played}</td>
+      <td class="right">${r.wins}</td>
+      <td class="right">${r.draws}</td>
+      <td class="right">${r.losses}</td>
+      <td class="right">${r.goalsFor}</td>
+      <td class="right">${r.goalsAgainst}</td>
+      <td class="right">${r.goalDiff}</td>
+      <td class="right"><b>${r.points}</b></td>
+    </tr>`;
+  });
+
+  html += `</tbody></table>`;
+  return html;
+}
+
+// ✅ One league table (dropdown)
+async function loadTableSelectedLeague(){
+  const league = tableLeague.value || favoriteLeague || "";
+  const favQ = favoriteTeam ? `favorite=${encodeURIComponent(favoriteTeam)}` : "favorite=";
+  const leagueQ = league ? `&league=${encodeURIComponent(league)}` : "";
+
+  const res = await fetch(`/table?${favQ}${leagueQ}`);
+  const data = await res.json();
+
+  tableUI.innerHTML = `
+    <div class="tableTitle"><b>League:</b> ${league || "ALL"}</div>
+    ${renderTableHTML(data.table || [])}
+  `;
+}
+
+// ✅ All league tables (EPL + LaLiga + SerieA + KPL)
+async function loadAllLeagueTables(){
+  if(!leagues || leagues.length === 0){
+    tableUI.innerHTML = `<div class="muted">(no leagues loaded)</div>`;
+    return;
+  }
+
+  tableUI.innerHTML = `<div class="muted">Loading all tables...</div>`;
+
+  let big = "";
+  for(const L of leagues){
+    const favQ = favoriteTeam ? `favorite=${encodeURIComponent(favoriteTeam)}` : "favorite=";
+    const res = await fetch(`/table?${favQ}&league=${encodeURIComponent(L)}`);
+    const data = await res.json();
+    big += `<div class="tableTitle"><b>${L}</b></div>`;
+    big += renderTableHTML(data.table || []);
+  }
+
+  tableUI.innerHTML = big;
+}
+
+async function loadStatsUI(){
+  const res = await fetch("/stats");
+  const d = await res.json();
+  statsUI.innerHTML = `
+    <div class="row">
+      <span class="pill">Total matches: <b>${d.totalMatches ?? "-"}</b></span>
+      <span class="pill">Finished: <b>${d.finishedMatches ?? "-"}</b></span>
+      <span class="pill">Total goals: <b>${d.totalGoals ?? "-"}</b></span>
+      <span class="pill">Avg goals/match: <b>${d.avgGoalsPerMatch ?? "-"}</b></span>
+    </div>`;
+}
+
+// init
+(async function init(){
+  await fetchLeagues();
+
+  // Load teams for register league
+  if(regLeague.value){
+    await loadTeams(regLeague.value);
+    fillRegisterTeams();
+  }
+
+  // If token saved
+  if(token){
+    const jwt = decodeJwt(token);
+    setRoleAndFav(jwt.role, jwt.favoriteLeague, jwt.favoriteTeam);
+    setAuthText("token saved");
+  } else {
+    setRoleAndFav("guest", "", "");
+    setAuthText("not logged");
+  }
+
+  // default tableLeague to favoriteLeague if exists
+  if(favoriteLeague && leagues.includes(favoriteLeague)){
+    tableLeague.value = favoriteLeague;
+  }
+
+  await refreshMatches();
+  onTypeChange();
+})();
 </script>
 
 </body>

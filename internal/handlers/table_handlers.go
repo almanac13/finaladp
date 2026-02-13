@@ -4,22 +4,26 @@ import (
 	"context"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	"final-by-me/internal/repository"
 )
 
 type TableRow struct {
-	TeamCode string `json:"teamCode"`
-	TeamName string `json:"teamName"`
-	P        int    `json:"played"`
-	W        int    `json:"wins"`
-	D        int    `json:"draws"`
-	L        int    `json:"losses"`
-	GF       int    `json:"goalsFor"`
-	GA       int    `json:"goalsAgainst"`
-	GD       int    `json:"goalDiff"`
-	Pts      int    `json:"points"`
+	TeamCode   string `json:"teamCode"`
+	TeamName   string `json:"teamName"`
+	League     string `json:"league"`
+	IsFavorite bool   `json:"isFavorite"`
+
+	P   int `json:"played"`
+	W   int `json:"wins"`
+	D   int `json:"draws"`
+	L   int `json:"losses"`
+	GF  int `json:"goalsFor"`
+	GA  int `json:"goalsAgainst"`
+	GD  int `json:"goalDiff"`
+	Pts int `json:"points"`
 }
 
 type TableHandler struct {
@@ -31,21 +35,61 @@ func NewTableHandler(teams *repository.TeamRepo, matches *repository.MatchRepo) 
 	return &TableHandler{teams: teams, matches: matches}
 }
 
+// GET /table?league=EPL&favorite=ARS
+// If league is provided -> table for that league only.
+// Favorite is optional -> marks that team row as isFavorite=true.
 func (h *TableHandler) GetTable(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	league := strings.TrimSpace(r.URL.Query().Get("league"))
+	fav := strings.ToUpper(strings.TrimSpace(r.URL.Query().Get("favorite")))
+
+	ctx, cancel := context.WithTimeout(r.Context(), 12*time.Second)
 	defer cancel()
 
-	teams, err := h.teams.List(ctx)
-	if err != nil {
-		writeJSON(w, 500, map[string]string{"error": "db error"})
-		return
+	// Load teams (by league if specified)
+	var teamsList []struct {
+		Code   string
+		Name   string
+		League string
 	}
 
-	rows := make(map[string]*TableRow, len(teams))
-	for _, t := range teams {
-		rows[t.Code] = &TableRow{TeamCode: t.Code, TeamName: t.Name}
+	if league == "" {
+		all, err := h.teams.List(ctx)
+		if err != nil {
+			writeJSON(w, 500, map[string]string{"error": "db error"})
+			return
+		}
+		for _, t := range all {
+			teamsList = append(teamsList, struct {
+				Code, Name, League string
+			}{t.Code, t.Name, t.League})
+		}
+	} else {
+		list, err := h.teams.ListByLeague(ctx, league)
+		if err != nil {
+			writeJSON(w, 500, map[string]string{"error": "db error"})
+			return
+		}
+		for _, t := range list {
+			teamsList = append(teamsList, struct {
+				Code, Name, League string
+			}{t.Code, t.Name, t.League})
+		}
 	}
 
+	// Build rows
+	rows := make(map[string]*TableRow, len(teamsList))
+	leagueSet := make(map[string]bool, len(teamsList)) // codes allowed in this table
+	for _, t := range teamsList {
+		leagueSet[t.Code] = true
+		rows[t.Code] = &TableRow{
+			TeamCode:   t.Code,
+			TeamName:   t.Name,
+			League:     t.League,
+			IsFavorite: (fav != "" && t.Code == fav),
+		}
+	}
+
+	// Finished matches
 	finished, err := h.matches.ListFinished(ctx)
 	if err != nil {
 		writeJSON(w, 500, map[string]string{"error": "db error"})
@@ -53,6 +97,13 @@ func (h *TableHandler) GetTable(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, m := range finished {
+		// If league specified: only count matches where BOTH teams are in this league
+		if league != "" {
+			if !leagueSet[m.HomeCode] || !leagueSet[m.AwayCode] {
+				continue
+			}
+		}
+
 		home := rows[m.HomeCode]
 		away := rows[m.AwayCode]
 		if home == nil || away == nil {
@@ -67,7 +118,6 @@ func (h *TableHandler) GetTable(w http.ResponseWriter, r *http.Request) {
 		away.GF += m.AwayGoals
 		away.GA += m.HomeGoals
 
-		// 3/1/0
 		if m.HomeGoals > m.AwayGoals {
 			home.W++
 			away.L++
@@ -79,8 +129,8 @@ func (h *TableHandler) GetTable(w http.ResponseWriter, r *http.Request) {
 		} else {
 			home.D++
 			away.D++
-			home.Pts += 1
-			away.Pts += 1
+			home.Pts++
+			away.Pts++
 		}
 	}
 
@@ -103,5 +153,9 @@ func (h *TableHandler) GetTable(w http.ResponseWriter, r *http.Request) {
 		return out[i].TeamName < out[j].TeamName
 	})
 
-	writeJSON(w, 200, map[string]any{"table": out, "count": len(out)})
+	writeJSON(w, 200, map[string]any{
+		"league": league,
+		"count":  len(out),
+		"table":  out,
+	})
 }

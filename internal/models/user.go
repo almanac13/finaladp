@@ -12,5 +12,9 @@ type User struct {
 	Name         string             `bson:"name" json:"name"`
 	PasswordHash string             `bson:"passwordHash" json:"-"`
 	Role         string             `bson:"role" json:"role"`
-	CreatedAt    time.Time          `bson:"createdAt" json:"createdAt"`
+
+	FavoriteLeague   string `bson:"favoriteLeague" json:"favoriteLeague"`
+	FavoriteTeamCode string `bson:"favoriteTeamCode" json:"favoriteTeamCode"`
+
+	CreatedAt time.Time `bson:"createdAt" json:"createdAt"`
 }
