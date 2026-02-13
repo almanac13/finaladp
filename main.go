@@ -105,7 +105,7 @@ func main() {
 		)
 	}
 
-	// ✅ Admin routes MUST match UI calls (NO conflicts)
+	// Admin routes MUST match UI calls (NO conflicts)
 	mux.Handle("POST /matches", adminChain(http.HandlerFunc(matchH.CreateMatch)))
 	mux.Handle("PATCH /matches/{key}/events", adminChain(http.HandlerFunc(matchH.AddEvent)))
 	mux.Handle("PATCH /matches/{key}/status", adminChain(http.HandlerFunc(matchH.SetStatus)))

@@ -61,7 +61,7 @@ func (r *MatchRepo) FindByKey(ctx context.Context, key string) (models.Match, bo
 	return m, true, nil
 }
 
-// ✅ Universal event insert (goal increments score)
+// Universal event insert (goal increments score)
 func (r *MatchRepo) AddEvent(ctx context.Context, key string, match models.Match, e models.MatchEvent) error {
 	update := bson.M{
 		"$push": bson.M{"events": e},

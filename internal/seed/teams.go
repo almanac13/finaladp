@@ -6,7 +6,7 @@ import "final-by-me/internal/models"
 func TeamsAll() []models.Team {
 	return []models.Team{
 		// EPL
-		// EPL (20 teams)
+
 		{Code: "ARS", Name: "Arsenal", League: "EPL"},
 		{Code: "AVL", Name: "Aston Villa", League: "EPL"},
 		{Code: "BOU", Name: "Bournemouth", League: "EPL"},
@@ -29,7 +29,7 @@ func TeamsAll() []models.Team {
 		{Code: "WOL", Name: "Wolves", League: "EPL"},
 
 		// LaLiga
-		// LaLiga (20 teams)
+
 		{Code: "RMA", Name: "Real Madrid", League: "LaLiga"},
 		{Code: "FCB", Name: "Barcelona", League: "LaLiga"},
 		{Code: "ATM", Name: "Atletico Madrid", League: "LaLiga"},
@@ -52,7 +52,7 @@ func TeamsAll() []models.Team {
 		{Code: "LAS", Name: "Las Palmas", League: "LaLiga"},
 
 		// SerieA
-		// SerieA (20 teams)
+
 		{Code: "INT", Name: "Inter", League: "SerieA"},
 		{Code: "ACM", Name: "AC Milan", League: "SerieA"},
 		{Code: "JUV", Name: "Juventus", League: "SerieA"},
@@ -75,7 +75,7 @@ func TeamsAll() []models.Team {
 		{Code: "FRO", Name: "Frosinone", League: "SerieA"},
 
 		// KPL (Kazakhstan Premier League)
-		// KPL
+
 		{Code: "AST", Name: "Astana", League: "KPL"},
 		{Code: "KAI", Name: "Kairat", League: "KPL"},
 		{Code: "ORD", Name: "Ordabasy", League: "KPL"},

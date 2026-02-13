@@ -33,7 +33,7 @@ func (h *MatchMongoHandler) ListMatches(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, 200, map[string]any{"matches": list, "count": len(list)})
 }
 
-// ✅ Create match: matchKey auto-generated
+// Create match: matchKey auto-generated
 func (h *MatchMongoHandler) CreateMatch(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		DateTime string `json:"dateTime"` // RFC3339
@@ -78,7 +78,7 @@ func (h *MatchMongoHandler) CreateMatch(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// ✅ unique matchKey
+	//  unique matchKey
 	matchKey := req.HomeCode + "-" + req.AwayCode + "-" + time.Now().Format("20060102-150405")
 
 	m := models.Match{
@@ -101,7 +101,7 @@ func (h *MatchMongoHandler) CreateMatch(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, 201, created)
 }
 
-// ✅ PATCH /matches/{key}/events
+// PATCH /matches/{key}/events
 func (h *MatchMongoHandler) AddEvent(w http.ResponseWriter, r *http.Request) {
 	key := strings.TrimSpace(r.PathValue("key"))
 	if key == "" {
@@ -184,7 +184,7 @@ func (h *MatchMongoHandler) AddEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ✅ repo allows status scheduled OR live (your $in filter)
+	//  repo allows status scheduled OR live (your $in filter)
 	if err := h.matches.AddEvent(ctx, key, m, req); err != nil {
 		writeJSON(w, 500, map[string]string{"error": "update error"})
 		return
@@ -193,7 +193,7 @@ func (h *MatchMongoHandler) AddEvent(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]string{"status": "ok"})
 }
 
-// ✅ PATCH /matches/{key}/status
+// PATCH /matches/{key}/status
 func (h *MatchMongoHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	key := strings.TrimSpace(r.PathValue("key"))
 	if key == "" {
@@ -252,7 +252,7 @@ func (h *MatchMongoHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]string{"status": string(s)})
 }
 
-// ✅ POST /matches/{key}/finalize
+// POST /matches/{key}/finalize
 func (h *MatchMongoHandler) Finalize(w http.ResponseWriter, r *http.Request) {
 	key := strings.TrimSpace(r.PathValue("key"))
 	if key == "" {

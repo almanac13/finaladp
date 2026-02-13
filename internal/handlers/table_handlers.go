@@ -78,7 +78,7 @@ func (h *TableHandler) GetTable(w http.ResponseWriter, r *http.Request) {
 
 	// Build rows
 	rows := make(map[string]*TableRow, len(teamsList))
-	leagueSet := make(map[string]bool, len(teamsList)) // codes allowed in this table
+	leagueSet := make(map[string]bool, len(teamsList))
 	for _, t := range teamsList {
 		leagueSet[t.Code] = true
 		rows[t.Code] = &TableRow{

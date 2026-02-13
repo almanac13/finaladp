@@ -35,7 +35,7 @@ func Sign(secret []byte, userID, email, role, favLeague, favTeam string) (string
 // Verify parses token and returns claims
 func Verify(secret []byte, tokenStr string) (*Claims, error) {
 	tok, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(t *jwt.Token) (any, error) {
-		// ensure HS256
+		// HS256
 		if t.Method != jwt.SigningMethodHS256 {
 			return nil, errors.New("unexpected signing method")
 		}

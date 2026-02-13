@@ -647,7 +647,7 @@ function renderTableHTML(rows){
   return html;
 }
 
-// ✅ One league table (dropdown)
+//  One league table (dropdown)
 async function loadTableSelectedLeague(){
   const league = tableLeague.value || favoriteLeague || "";
   const favQ = favoriteTeam ? `favorite=${encodeURIComponent(favoriteTeam)}` : "favorite=";
@@ -662,7 +662,7 @@ async function loadTableSelectedLeague(){
   `;
 }
 
-// ✅ All league tables (EPL + LaLiga + SerieA + KPL)
+// All league tables (EPL + LaLiga + SerieA + KPL)
 async function loadAllLeagueTables(){
   if(!leagues || leagues.length === 0){
     tableUI.innerHTML = `<div class="muted">(no leagues loaded)</div>`;

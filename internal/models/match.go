@@ -31,7 +31,7 @@ type MatchEvent struct {
 
 type Match struct {
 	ID       primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	MatchKey string             `bson:"matchKey" json:"matchKey"` // auto-generated unique
+	MatchKey string             `bson:"matchKey" json:"matchKey"`
 
 	DateTime  time.Time   `bson:"dateTime" json:"dateTime"`
 	HomeCode  string      `bson:"homeCode" json:"homeCode"`

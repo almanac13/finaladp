@@ -25,7 +25,7 @@ func AuthJWT(jwtSecret []byte) func(http.Handler) http.Handler {
 			}
 			token := strings.TrimSpace(h[len("Bearer "):])
 
-			claims, err := auth.Verify(jwtSecret, token) // you’ll add Verify() below if not exists
+			claims, err := auth.Verify(jwtSecret, token)
 			if err != nil {
 				http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
 				return

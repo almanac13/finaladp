@@ -6,7 +6,7 @@ type VIPHandler struct{}
 
 func NewVIPHandler() *VIPHandler { return &VIPHandler{} }
 
-// VIP exists, but feature is not implemented (in processing).
+// VIP exists, but feature is not implemented
 func (h *VIPHandler) VIPStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"status":  "in processing",
